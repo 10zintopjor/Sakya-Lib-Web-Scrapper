@@ -1,15 +1,20 @@
-import re
-from urllib import response
 from uuid import uuid4
 from openpecha.core.pecha import OpenPechaFS
 from openpecha.core.layer import InitialCreationEnum, Layer, LayerEnum,PechaMetaData
 from openpecha.core.annotation import Page, Span
 from openpecha.core.ids import get_pecha_id
-
+from bs4 import BeautifulSoup
 from datetime import datetime
 import requests
-from bs4 import BeautifulSoup
 import re
+import re
+import logging
+
+logging.basicConfig(
+    filename="new_pagination_updated.log",
+    format="%(message)s",
+    level=logging.INFO,
+)
 
 
 text_api = 'http://sakyalibrary.com/library/BookPage?bookId={book_id}&pgNo={page_no}'
@@ -102,6 +107,7 @@ def create_meta(opf_path):
     opf._meta = instance_meta
     opf.save_meta()
 
+
 def get_collections(url):
     response = make_request(url)
     page = BeautifulSoup(response.content,'html.parser')
@@ -112,7 +118,7 @@ def get_collections(url):
 
 
 def get_links(div):
-    title = div.select_one("h4.panel-title a span").text
+    main_title = div.select_one("h4.panel-title a span").text
     sub_titles = div.select("div.panel.panel-default.tab_topic")
     for sub_title in sub_titles:
         dict = {}
@@ -127,7 +133,7 @@ def get_links(div):
             link = link_tag.select_one('a')['href']
             vols.append({"title":title,"link":link})
 
-        dict.update({"title":sub_title.text.strip(),"parent":title.strip(),"vol":vols}) 
+        dict.update({"title":sub_title.text.strip(),"parent":main_title,"vol":vols}) 
 
         yield dict
     
@@ -144,19 +150,25 @@ def get_more_links(link,main_title):
 
 
 
-def main():
-    url = "http://sakyalibrary.com/library/Book/68d456e5-5314-4465-a02d-54a10c5b0adb"
-    filename = "demo_filename"
-    book_id = extract_book_id(url)
+def main(col):
+    vols = col['vol']
     pecha_id = get_pecha_id()
     opf_path = f"./opfs/{pecha_id}/{pecha_id}.opf"
-    base_text = get_text(book_id)
-    create_opf(opf_path,base_text,filename)
+
+    for vol in vols:
+        print(vol['link'])
+        if "/library/Book" not in vol['link']:
+            continue
+        url = "http://sakyalibrary.com"+vol['link']
+        filename = vol['title']
+        book_id = extract_book_id(url) 
+        base_text = get_text(book_id)
+        create_opf(opf_path,base_text,filename[0:20])
+        print(vol['title'])
     create_meta(opf_path)
     
 
 if __name__ == "__main__":
     for col in get_collections("http://sakyalibrary.com/library/collections"):
-        print(col)
+        main(col)
         break
-    #main()
