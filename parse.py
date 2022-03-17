@@ -18,6 +18,7 @@ import re
 
 text_api = 'http://sakyalibrary.com/library/BookPage?bookId={book_id}&pgNo={page_no}'
 main_api = 'http://sakyalibrary.com/library/Book/{book_id}'
+
 def make_request(url):
     response = requests.get(url)
     return response
@@ -29,8 +30,6 @@ def get_text(book_id):
     pagination_ul = page.select_one("ul.pagination li#pgNext")
     base_text = get_into_page(book_id)
     return base_text
-    """ with open("demo.txt","w") as f:
-        f.write(base_text) """
 
 
 def get_into_page(book_id,page_no=1,base_text={}):
@@ -107,6 +106,21 @@ def create_meta(opf_path):
     opf._meta = instance_meta
     opf.save_meta()
 
+def get_collections(url):
+    response = make_request(url)
+    page = BeautifulSoup(response.content,'html.parser')
+    collections = page.select_one("div#tab_collections")
+    divs = collections.findChildren("div",recursive=False)
+    for div in divs:
+        get_links(div)
+
+
+def get_links(div):
+    title = div.select_one("h4.panel-title a span").text
+    print(title)
+
+
+
 def main():
     url = "http://sakyalibrary.com/library/Book/68d456e5-5314-4465-a02d-54a10c5b0adb"
     filename = "demo_filename"
@@ -118,6 +132,6 @@ def main():
     create_meta(opf_path)
     
 
-
 if __name__ == "__main__":
-    main()
+    get_collections("http://sakyalibrary.com/library/collections")
+    #main()
