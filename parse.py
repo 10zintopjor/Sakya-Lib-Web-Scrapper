@@ -1,7 +1,4 @@
-from email.mime import base
-from fileinput import filename
 import re
-from traceback import print_tb
 from urllib import response
 from uuid import uuid4
 from openpecha.core.pecha import OpenPechaFS
@@ -10,7 +7,6 @@ from openpecha.core.annotation import Page, Span
 from openpecha.core.ids import get_pecha_id
 
 from datetime import datetime
-from venv import create
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -112,12 +108,39 @@ def get_collections(url):
     collections = page.select_one("div#tab_collections")
     divs = collections.findChildren("div",recursive=False)
     for div in divs:
-        get_links(div)
+        yield from get_links(div)
 
 
 def get_links(div):
     title = div.select_one("h4.panel-title a span").text
-    print(title)
+    sub_titles = div.select("div.panel.panel-default.tab_topic")
+    for sub_title in sub_titles:
+        dict = {}
+        vols =[]
+        link_tags = sub_title.find_next_sibling('div').select("div.file-text.row")
+        has_more = sub_title.find_next_sibling('div').select_one("div.book-more a")
+        if has_more:
+            link = has_more["href"]
+            link_tags = get_more_links(link,sub_title.text.strip())
+        for link_tag in link_tags:
+            title = link_tag.select_one('div').text
+            link = link_tag.select_one('a')['href']
+            vols.append({"title":title,"link":link})
+
+        dict.update({"title":sub_title.text.strip(),"parent":title.strip(),"vol":vols}) 
+
+        yield dict
+    
+
+def get_more_links(link,main_title):
+    response = make_request("http://sakyalibrary.com/"+link)
+    page = BeautifulSoup(response.content,'html.parser')
+    titles = page.select("div.panel.panel-default") 
+    for title in titles:
+        in_title = title.select_one("h4.panel-title a span").text.strip()
+        if in_title == main_title:
+            link_tags = title.select("div.panel-body div.file-text.row")
+            return link_tags
 
 
 
@@ -133,5 +156,7 @@ def main():
     
 
 if __name__ == "__main__":
-    get_collections("http://sakyalibrary.com/library/collections")
+    for col in get_collections("http://sakyalibrary.com/library/collections"):
+        print(col)
+        break
     #main()
