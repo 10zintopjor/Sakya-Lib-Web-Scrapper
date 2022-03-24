@@ -97,16 +97,28 @@ def get_page_annotation(page_no,text,char_walker):
     return page_annotation,page_end+2
 
 
-def create_meta(opf_path):
+def write_meta(opf_path,col):
     instance_meta = PechaMetaData(
         initial_creation_type=InitialCreationEnum.input,
         created_at=datetime.now(),
         last_modified_at=datetime.now(),
-        source_metadata="")
+        source_metadata={
+            "title":col['title'],
+            "volumes":get_source_meta(col['vol'])
+        })
     opf = OpenPechaFS(opf_path=opf_path)
     opf._meta = instance_meta
     opf.save_meta()
 
+
+def get_source_meta(vols):
+    meta= {}
+    for vol in vols:
+        meta.update({uuid4().hex:{
+            "title":vol['title'],
+            "base_file": f"{vol}.txt",
+        }})
+    return meta    
 
 def get_collections(url):
     response = make_request(url)
@@ -149,6 +161,19 @@ def get_more_links(link,main_title):
             return link_tags
 
 
+def write_readme(pecha_id,col):
+
+    Table = "| --- | --- "
+    Title = f"|Title | {col['title']} "
+    lang = f"|Language | bo"
+    source = f"|Source | Sakya Digital Library"
+
+    readme = f"{Title}\n{Table}\n{lang}\n{source}"
+
+    with open(f"./opfs/pecha_id/readme.md","w") as f:
+        f.write(readme)
+
+    return readme
 
 def main(col):
     vols = col['vol']
@@ -156,7 +181,6 @@ def main(col):
     opf_path = f"./opfs/{pecha_id}/{pecha_id}.opf"
 
     for vol in vols:
-        print(vol['link'])
         if "/library/Book" not in vol['link']:
             continue
         url = "http://sakyalibrary.com"+vol['link']
@@ -164,11 +188,14 @@ def main(col):
         book_id = extract_book_id(url) 
         base_text = get_text(book_id)
         create_opf(opf_path,base_text,filename[0:20])
+        print(col['title'])
         print(vol['title'])
-    create_meta(opf_path)
+
+    write_meta(opf_path,col)
+    write_readme(pecha_id,col)
     
 
 if __name__ == "__main__":
     for col in get_collections("http://sakyalibrary.com/library/collections"):
         main(col)
-        break
+
