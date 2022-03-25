@@ -104,6 +104,7 @@ def write_meta(opf_path,col):
         last_modified_at=datetime.now(),
         source_metadata={
             "title":col['title'],
+            "parent":col["parent"],
             "volumes":get_source_meta(col['vol'])
         })
     opf = OpenPechaFS(opf_path=opf_path)
@@ -170,7 +171,7 @@ def write_readme(pecha_id,col):
 
     readme = f"{Title}\n{Table}\n{lang}\n{source}"
 
-    with open(f"./opfs/pecha_id/readme.md","w") as f:
+    with open(f"./opfs/{pecha_id}/readme.md","w") as f:
         f.write(readme)
 
     return readme
@@ -196,6 +197,8 @@ def main(col):
     
 
 if __name__ == "__main__":
+    finished_task = ["Prajñāpāramitā","Vinaya","Madhyamaka"]
     for col in get_collections("http://sakyalibrary.com/library/collections"):
-        main(col)
+        if col['title'] not in finished_task:
+            main(col)
 
