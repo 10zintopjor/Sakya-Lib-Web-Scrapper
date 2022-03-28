@@ -10,6 +10,8 @@ import re
 import re
 import logging
 
+input_source = "https://sakyalibrary.com"
+
 logging.basicConfig(
     filename="new_pagination_updated.log",
     format="%(message)s",
@@ -58,8 +60,8 @@ def extract_book_id(url):
 
 def create_opf(opf_path,base_text,filename):
     opf = OpenPechaFS(opf_path=opf_path)
-    layers = {f"v{filename}": {LayerEnum.pagination: get_layers(base_text)}}
-    bases = {f"v{filename}":get_base_text(base_text)}
+    layers = {f"{filename}": {LayerEnum.pagination: get_layers(base_text)}}
+    bases = {f"{filename}":get_base_text(base_text)}
     opf.layers = layers
     opf.base = bases
     opf.save_base()
@@ -91,7 +93,7 @@ def get_page_annotation(page_no,text,char_walker):
     page_start = char_walker
     page_end = char_walker +len(text)
     page_annotation = {
-        uuid4().hex:Page(span=Span(start=page_start,end=page_end),page_info=page_no)
+        uuid4().hex:Page(span=Span(start=page_start,end=page_end),metadata={"page_no":page_no})
     }
 
     return page_annotation,page_end+2
@@ -105,6 +107,7 @@ def write_meta(opf_path,col):
         source_metadata={
             "title":col['title'],
             "parent":col["parent"],
+            "source":input_source,
             "volumes":get_source_meta(col['vol'])
         })
     opf = OpenPechaFS(opf_path=opf_path)
