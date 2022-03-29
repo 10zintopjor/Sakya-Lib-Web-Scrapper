@@ -9,16 +9,11 @@ import requests
 import re
 import re
 import logging
+from openpecha import github_utils,config
 
 input_source = "https://sakyalibrary.com"
-
-logging.basicConfig(
-    filename="new_pagination_updated.log",
-    format="%(message)s",
-    level=logging.INFO,
-)
-
-
+pechas_catalog = ''
+err_log = ''
 text_api = 'http://sakyalibrary.com/library/BookPage?bookId={book_id}&pgNo={page_no}'
 main_api = 'http://sakyalibrary.com/library/Book/{book_id}'
 
@@ -124,6 +119,7 @@ def get_source_meta(vols):
         }})
     return meta    
 
+
 def get_collections(url):
     response = make_request(url)
     page = BeautifulSoup(response.content,'html.parser')
@@ -148,9 +144,7 @@ def get_links(div):
             title = link_tag.select_one('div').text
             link = link_tag.select_one('a')['href']
             vols.append({"title":title,"link":link})
-
         dict.update({"title":sub_title.text.strip(),"parent":main_title,"vol":vols}) 
-
         yield dict
     
 
@@ -166,24 +160,19 @@ def get_more_links(link,main_title):
 
 
 def write_readme(pecha_id,col):
-
     Table = "| --- | --- "
     Title = f"|Title | {col['title']} "
     lang = f"|Language | bo"
-    source = f"|Source | Sakya Digital Library"
-
+    source = f"|Source | {input_source}"
     readme = f"{Title}\n{Table}\n{lang}\n{source}"
-
     with open(f"./opfs/{pecha_id}/readme.md","w") as f:
         f.write(readme)
-
     return readme
 
-def main(col):
+def build(col):
     vols = col['vol']
     pecha_id = get_pecha_id()
     opf_path = f"./opfs/{pecha_id}/{pecha_id}.opf"
-
     for vol in vols:
         if "/library/Book" not in vol['link']:
             continue
@@ -194,14 +183,41 @@ def main(col):
         create_opf(opf_path,base_text,filename[0:20])
         print(col['title'])
         print(vol['title'])
-
     write_meta(opf_path,col)
     write_readme(pecha_id,col)
-    
+    publish_pecha(opf_path)
+    pechas_catalog.info(f"{pecha_id},{col['title']}")
+
+
+def set_up_logger(logger_name):
+    logger = logging.getLogger(logger_name)
+    formatter = logging.Formatter("%(message)s")
+    fileHandler = logging.FileHandler(f"{logger_name}.log")
+    fileHandler.setFormatter(formatter)
+    logger.setLevel(logging.INFO)
+    logger.addHandler(fileHandler)
+    return logger
+
+
+def publish_pecha(opf_path):
+    github_utils.github_publish(
+    opf_path,
+    not_includes=[],
+    message="initial commit"
+    )
+
+def main():
+    global pechas_catalog,err_log
+    pechas_catalog = set_up_logger("pechas_catalog")
+    err_log = set_up_logger('err')
+    for col in get_collections("http://sakyalibrary.com/library/collections"):
+        try:
+            build(col)
+        except:
+            err_log.info(f"err :{col['title']}")      
+
 
 if __name__ == "__main__":
-    finished_task = ["Prajñāpāramitā","Vinaya","Madhyamaka"]
-    for col in get_collections("http://sakyalibrary.com/library/collections"):
-        if col['title'] not in finished_task:
-            main(col)
+    main()
+    
 
