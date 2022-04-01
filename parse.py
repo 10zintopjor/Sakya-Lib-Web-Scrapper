@@ -23,14 +23,14 @@ def make_request(url):
 
 
 def get_text(book_id):
+    base_text = {}
     response = make_request(main_api.format(book_id=book_id))
     page = BeautifulSoup(response.content,'html.parser')
-    pagination_ul = page.select_one("ul.pagination li#pgNext")
-    base_text = get_into_page(book_id)
+    base_text = get_into_page(book_id,1,base_text)
     return base_text
 
 
-def get_into_page(book_id,page_no=1,base_text={}):
+def get_into_page(book_id,page_no,base_text):
     response = make_request(text_api.format(book_id=book_id,page_no=page_no))
     base_text.update({page_no:response.text.strip("\n")})
     if has_next_page(book_id,page_no+1):
@@ -115,7 +115,7 @@ def get_source_meta(vols):
     for vol in vols:
         meta.update({uuid4().hex:{
             "title":vol['title'],
-            "base_file": f"{vol}.txt",
+            "base_file": f"{vol['title']}.txt",
         }})
     return meta    
 
@@ -169,20 +169,23 @@ def write_readme(pecha_id,col):
         f.write(readme)
     return readme
 
+
 def build(col):
     vols = col['vol']
+    new_vols = []
     pecha_id = get_pecha_id()
     opf_path = f"./opfs/{pecha_id}/{pecha_id}.opf"
     for vol in vols:
         if "/library/Book" not in vol['link']:
             continue
-        url = "http://sakyalibrary.com"+vol['link']
+        new_vols.append(vol)
         filename = vol['title']
-        book_id = extract_book_id(url) 
+        book_id = extract_book_id("http://sakyalibrary.com"+vol['link']) 
         base_text = get_text(book_id)
         create_opf(opf_path,base_text,filename[0:20])
         print(col['title'])
         print(vol['title'])
+    col["vol"] = new_vols    
     write_meta(opf_path,col)
     write_readme(pecha_id,col)
     publish_pecha(opf_path)
@@ -205,6 +208,8 @@ def publish_pecha(opf_path):
     not_includes=[],
     message="initial commit"
     )
+    print("PUBLISHED")
+
 
 def main():
     global pechas_catalog,err_log
@@ -214,8 +219,8 @@ def main():
         try:
             build(col)
         except:
-            err_log.info(f"err :{col['title']}")      
-
+            err_log.info(f"err :{col['title']}")  
+        
 
 if __name__ == "__main__":
     main()
