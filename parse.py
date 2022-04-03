@@ -221,7 +221,6 @@ def main():
             build(col)
         except:
             err_log.info(f"err :{col['title']}")  
-        break
 
 def test_main():
     global pechas_catalog,err_log
