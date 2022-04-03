@@ -143,7 +143,7 @@ def get_links(div):
         for link_tag in link_tags:
             title = link_tag.select_one('div').text
             link = link_tag.select_one('a')['href']
-            vols.append({"title":title,"link":link})
+            vols.append({"title":title.strip().replace("\n",""),"link":link})
         dict.update({"title":sub_title.text.strip(),"parent":main_title,"vol":vols}) 
         yield dict
     
@@ -178,13 +178,14 @@ def build(col):
     for vol in vols:
         if "/library/Book" not in vol['link']:
             continue
+        
         new_vols.append(vol)
         filename = vol['title']
         book_id = extract_book_id("http://sakyalibrary.com"+vol['link']) 
         base_text = get_text(book_id)
-        create_opf(opf_path,base_text,filename[0:20])
         print(col['title'])
         print(vol['title'])
+        create_opf(opf_path,base_text,filename[0:50])
     col["vol"] = new_vols    
     write_meta(opf_path,col)
     write_readme(pecha_id,col)
@@ -220,9 +221,18 @@ def main():
             build(col)
         except:
             err_log.info(f"err :{col['title']}")  
-        
+        break
+
+def test_main():
+    global pechas_catalog,err_log
+    pechas_catalog = set_up_logger("pechas_catalog")
+    err_log = set_up_logger('err')
+    for col in get_collections("http://sakyalibrary.com/library/collections"):
+        if col['title'] == "Commentaries on philosophical treatises":
+            build(col)
+    
 
 if __name__ == "__main__":
     main()
-    
+    #test_main()
 
