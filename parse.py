@@ -189,7 +189,7 @@ def build(col):
     col["vol"] = new_vols    
     write_meta(opf_path,col)
     write_readme(pecha_id,col)
-    publish_pecha(opf_path)
+    publish_pecha("./opfs/{pecha_id}")
     pechas_catalog.info(f"{pecha_id},{col['title']}")
 
 
