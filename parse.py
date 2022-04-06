@@ -231,14 +231,6 @@ def main():
         except:
             err_log.info(f"err :{col['title']}")  
 
-def test_main():
-    global pechas_catalog,err_log
-    pechas_catalog = set_up_logger("pechas_catalog")
-    err_log = set_up_logger('err')
-    for col in get_collections("http://sakyalibrary.com/library/collections"):
-        if col['title'] == "Commentaries on philosophical treatises":
-            build(col)
-    
 
 def test_err():
     for col in get_collections("http://sakyalibrary.com/library/collections"):
