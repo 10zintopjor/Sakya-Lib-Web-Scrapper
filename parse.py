@@ -193,7 +193,7 @@ def build(col):
     col["vol"] = base_id_title_map  
     write_meta(opf_path,col)
     write_readme(pecha_id,col)
-    publish_pecha(opf_path)
+    publish_pecha(f"./opfs/{pecha_id}")
     pechas_catalog.info(f"{pecha_id},{col['title']}")
 
 def get_base_id():
