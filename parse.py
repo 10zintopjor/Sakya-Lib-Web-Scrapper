@@ -53,10 +53,10 @@ def extract_book_id(url):
     return book_id
 
 
-def create_opf(opf_path,base_text,filename):
+def create_opf(opf_path,base_text,base_id):
     opf = OpenPechaFS(opf_path=opf_path)
-    layers = {f"{filename}": {LayerEnum.pagination: get_layers(base_text)}}
-    bases = {f"{filename}":get_base_text(base_text)}
+    layers = {f"{base_id}": {LayerEnum.pagination: get_layers(base_text)}}
+    bases = {f"{base_id}":get_base_text(base_text)}
     opf.layers = layers
     opf.base = bases
     opf.save_base()
@@ -65,7 +65,6 @@ def create_opf(opf_path,base_text,filename):
 
 def get_base_text(base_text):
     text = ""
-
     for elem in base_text:
         text+=base_text[elem]+"\n\n"
     return text
@@ -103,20 +102,25 @@ def write_meta(opf_path,col):
             "title":col['title'],
             "parent":col["parent"],
             "source":input_source,
-            "volumes":get_source_meta(col['vol'])
+            "bases":get_source_meta(col['vol'])
         })
     opf = OpenPechaFS(opf_path=opf_path)
     opf._meta = instance_meta
     opf.save_meta()
 
 
-def get_source_meta(vols):
+def get_source_meta(bases):
     meta= {}
-    for vol in vols:
-        meta.update({uuid4().hex:{
-            "title":vol['title'],
-            "base_file": f"{vol['title']}.txt",
+    order =1
+    for base_id in bases:
+        title,author = bases[base_id]
+        meta.update({base_id:{
+            "title":title,
+            "author":author,
+            "base_file": f"{base_id}.txt",
+            "order":order
         }})
+        order+=1
     return meta    
 
 
@@ -141,9 +145,10 @@ def get_links(div):
             link = has_more["href"]
             link_tags = get_more_links(link,sub_title.text.strip())
         for link_tag in link_tags:
-            title = link_tag.select_one('div').text
+            title = link_tag.select_one('div').text.strip()
             link = link_tag.select_one('a')['href']
-            vols.append({"title":title,"link":link})
+            author = link_tag.select_one('div.file-text-author.col-sm-2.col-xs-4').text.strip()
+            vols.append({"title":title,"link":link,"author":author})
         dict.update({"title":sub_title.text.strip(),"parent":main_title,"vol":vols}) 
         yield dict
     
@@ -172,25 +177,30 @@ def write_readme(pecha_id,col):
 
 def build(col):
     vols = col['vol']
-    new_vols = []
     pecha_id = get_pecha_id()
     opf_path = f"./opfs/{pecha_id}/{pecha_id}.opf"
+    base_id_title_map={}
     for vol in vols:
         if "/library/Book" not in vol['link']:
             continue
-        new_vols.append(vol)
-        filename = vol['title']
+        base_id = get_base_id()
+        base_id_title_map.update({base_id:[vol['title'],vol['author']]})
         book_id = extract_book_id("http://sakyalibrary.com"+vol['link']) 
         base_text = get_text(book_id)
-        create_opf(opf_path,base_text,filename[0:20])
+        create_opf(opf_path,base_text,base_id)
         print(col['title'])
         print(vol['title'])
-    col["vol"] = new_vols    
+    col["vol"] = base_id_title_map  
     write_meta(opf_path,col)
     write_readme(pecha_id,col)
-    publish_pecha(opf_path)
-    pechas_catalog.info(f"{pecha_id},{col['title']}")
+    #publish_pecha(opf_path)
+    #pechas_catalog.info(f"{pecha_id},{col['title']}")
 
+def get_base_id():
+    id=uuid4().hex[:4]
+    while id.isnumeric() == True:
+        id = uuid4().hex[:4]
+    return id
 
 def set_up_logger(logger_name):
     logger = logging.getLogger(logger_name)
@@ -222,7 +232,13 @@ def main():
             err_log.info(f"err :{col['title']}")  
         
 
+def test_err():
+    for col in get_collections("http://sakyalibrary.com/library/collections"):
+        build(col)
+        break
+
 if __name__ == "__main__":
-    main()
+    #main()
+    test_err()
     
 
