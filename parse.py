@@ -194,7 +194,7 @@ def build(col):
     write_meta(opf_path,col)
     write_readme(pecha_id,col)
     #publish_pecha(opf_path)
-    #pechas_catalog.info(f"{pecha_id},{col['title']}")
+    #pechas_catalog.info(f"{pecha_id},{col['title']}
 
 def get_base_id():
     id=uuid4().hex[:4]
@@ -230,7 +230,15 @@ def main():
             build(col)
         except:
             err_log.info(f"err :{col['title']}")  
-        
+
+def test_main():
+    global pechas_catalog,err_log
+    pechas_catalog = set_up_logger("pechas_catalog")
+    err_log = set_up_logger('err')
+    for col in get_collections("http://sakyalibrary.com/library/collections"):
+        if col['title'] == "Commentaries on philosophical treatises":
+            build(col)
+    
 
 def test_err():
     for col in get_collections("http://sakyalibrary.com/library/collections"):
