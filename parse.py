@@ -1,8 +1,10 @@
 from uuid import uuid4
 from openpecha.core.pecha import OpenPechaFS
-from openpecha.core.layer import InitialCreationEnum, Layer, LayerEnum,PechaMetaData
+from openpecha.core.metadata import InitialPechaMetadata,InitialCreationType
 from openpecha.core.annotation import Page, Span
-from openpecha.core.ids import get_pecha_id
+from openpecha.core.layer import Layer, LayerEnum
+
+from openpecha.core.ids import get_initial_pecha_id
 from bs4 import BeautifulSoup
 from datetime import datetime
 import requests
@@ -54,7 +56,7 @@ def extract_book_id(url):
 
 
 def create_opf(opf_path,base_text,base_id):
-    opf = OpenPechaFS(opf_path=opf_path)
+    opf = OpenPechaFS(path=opf_path)
     layers = {f"{base_id}": {LayerEnum.pagination: get_layers(base_text)}}
     bases = {f"{base_id}":get_base_text(base_text)}
     opf.layers = layers
@@ -94,10 +96,9 @@ def get_page_annotation(page_no,text,char_walker):
 
 
 def write_meta(opf_path,col):
-    instance_meta = PechaMetaData(
-        initial_creation_type=InitialCreationEnum.input,
-        created_at=datetime.now(),
-        last_modified_at=datetime.now(),
+    instance_meta = InitialPechaMetadata(
+        initial_creation_type=InitialCreationType.input,
+        source=input_source,
         source_metadata={
             "title":col['title'],
             "parent":col["parent"],
@@ -177,7 +178,7 @@ def write_readme(pecha_id,col):
 
 def build(col):
     vols = col['vol']
-    pecha_id = get_pecha_id()
+    pecha_id = get_initial_pecha_id()
     opf_path = f"./opfs/{pecha_id}/{pecha_id}.opf"
     base_id_title_map={}
     for vol in vols:
@@ -226,11 +227,12 @@ def main():
     pechas_catalog = set_up_logger("pechas_catalog")
     err_log = set_up_logger('err')
     for col in get_collections("http://sakyalibrary.com/library/collections"):
-        try:
+        build(col)
+        """ try:
             build(col)
         except:
-            err_log.info(f"err :{col['title']}")  
-
+            err_log.info(f"err :{col['title']}") """  
+        break
 
 def test_err():
     for col in get_collections("http://sakyalibrary.com/library/collections"):
