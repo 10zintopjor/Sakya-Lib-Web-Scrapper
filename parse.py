@@ -3,16 +3,15 @@ from openpecha.core.pecha import OpenPechaFS
 from openpecha.core.metadata import InitialPechaMetadata,InitialCreationType
 from openpecha.core.annotation import Page, Span
 from openpecha.core.layer import Layer, LayerEnum
-
+from openpecha import github_utils
 from openpecha.core.ids import get_initial_pecha_id,get_base_id
 from pathlib import Path
 from bs4 import BeautifulSoup
-from datetime import datetime
+from pyparsing import col
 import requests
-import re
+import os
 import re
 import logging
-from openpecha import github_utils,config
 
 input_source = "https://sakyalibrary.com"
 pechas_catalog = ''
@@ -38,7 +37,7 @@ def get_into_page(book_id,page_no,base_text,page_html,pecha_id):
     save_source(page_html,page_no,pecha_id)
     base_text.update({page_no:response.text.strip("\n")})
     if has_next_page(book_id,page_no+1):
-        _ = get_into_page(book_id,page_no+1,base_text,response.text.strip())
+        _ = get_into_page(book_id,page_no+1,base_text,response.text.strip(),pecha_id)
     return base_text
 
 def save_source(page_html,page_no,pecha_id):
@@ -140,10 +139,8 @@ def get_collections(url):
 
 
 def get_links(div):
-    print(div.select_one("h4.panel-title a span").text)
     main_title = re.search("\s\D+",div.select_one("h4.panel-title a span").text)
     main_title = main_title.group(0)
-    print(main_title)
     sub_titles = div.select("div.panel.panel-default.tab_topic")
     for sub_title in reversed(sub_titles):
         dict = {}
@@ -188,7 +185,7 @@ def write_readme(pecha_id,col):
 def build(col):
     vols = col['vol']
     pecha_id = get_initial_pecha_id()
-    opf_root_path = f"./opfs/{pecha_id}/{pecha_id}.opf"
+    opf_path = f"./{opf_root_path}/{pecha_id}/{pecha_id}.opf"
     base_id_title_map={}
     for vol in vols:
         if "/library/Book" not in vol['link']:
@@ -197,12 +194,12 @@ def build(col):
         base_id_title_map.update({base_id:[vol['title'],vol['author']]})
         book_id = extract_book_id("http://sakyalibrary.com"+vol['link']) 
         base_text = get_text(book_id,pecha_id)
-        create_opf(opf_root_path,base_text,base_id)
+        create_opf(opf_path,base_text,base_id)
         print(vol['title'])
     col["vol"] = base_id_title_map  
     write_meta(opf_root_path,col)
     write_readme(pecha_id,col)
-    #publish_pecha(f"./opfs/{pecha_id}")
+    publish_pecha(pecha_id)
     pechas_catalog.info(f"{pecha_id},{col['title']}")
 
 
@@ -216,11 +213,14 @@ def set_up_logger(logger_name):
     return logger
 
 
-def publish_pecha(opf_root_path):
+def publish_pecha(pecha_id):
+    opf_path = f"{opf_root_path}/{pecha_id}"
     github_utils.github_publish(
-    opf_root_path,
+    opf_path,
     not_includes=[],
-    message="initial commit"
+    message="initial commit",
+    org="OpenPecha-Data",
+    token=os.environ.get("GITHUB_TOKEN")
     )
     print("PUBLISHED")
 
@@ -229,14 +229,15 @@ def main():
     global pechas_catalog,err_log
     pechas_catalog = set_up_logger("pechas_catalog")
     err_log = set_up_logger('err')
-    for col in get_collections("http://sakyalibrary.com/library/collections"):
-        if col["title"] == "Individual works":
+    for collection in get_collections("http://sakyalibrary.com/library/collections"):
+        """ if col["title"] == "Individual works":
             build(col)
-            print("**********************")
-        """ try:
-            build(col)
+            print("**********************") """
+        try:
+            print(collection["title"])
+            build(collection)
         except:
-            err_log.info(f"err :{col['title']}") """  
+            err_log.info(f"err :{collection['title']}")  
 
 def test_err():
     for col in get_collections("http://sakyalibrary.com/library/collections"):
@@ -245,6 +246,5 @@ def test_err():
 
 if __name__ == "__main__":
     main()
-    #test_err()
     
 
